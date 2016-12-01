@@ -14,11 +14,15 @@ enum Direction { up, down, left, right, invalid };
 const int GRID_SIZE = 25;
 const int GRID_WIDTH = 5;
 void Game();
-void Move(Direction direction, int originalPosition, vector<int> grid);
+int Move(int originalPosition, vector<int>& grid);
 bool IsCellFree(vector<int> grid, int cell);
 Marker GetCell(vector<int> grid, int cell);
+string MarkerToChar(Marker marker);
 Direction ValidateDirection(string s);
 void GenerateMarkers(vector<int>& grid);
+void PrintGrid(vector<int> grid, bool showAll);
+
+
 // Funzioni
 
 int main()
@@ -43,14 +47,24 @@ void Game()
 {
 
 	vector<int> grid(GRID_SIZE);
-	int playerPosition = 0;
+	int playerPosition = 12;
+	grid[12] = Marker::hero;
 
+	while (true)
+	{
+		MaddoLib::ClearScreen();
+		PrintGrid(grid, true);
+		playerPosition = Move(playerPosition, grid);
+	}
+
+	
+	
 }
 
-void Move(Direction direction, int originalPosition, vector<int> grid)
+int Move(int originalPosition, vector<int>& grid)
 {
-	string d;
 	Direction direction;
+	string d;
 	int destination;
 	while (true)
 	{
@@ -96,9 +110,11 @@ void Move(Direction direction, int originalPosition, vector<int> grid)
 		else if (!IsCellFree(grid, destination)) {
 			MaddoLib::OutputLine("Non è possibile muoversi in quella direzione");
 		}
-		else 
+		else
 		{
-			break;
+			grid[originalPosition] = Marker::empty;
+			grid[destination] = Marker::hero;
+			return destination;
 		}
 	}
 }
@@ -113,6 +129,13 @@ Marker GetCell(vector<int> grid, int cell)
 	return static_cast<Marker>(grid[cell]);
 
 	return Marker();
+}
+
+string CellToChar(vector<int> grid, int cell)
+{
+
+
+	return string();
 }
 
 Direction ValidateDirection(string s)
@@ -137,7 +160,49 @@ Direction ValidateDirection(string s)
 	return Direction::invalid;
 }
 
-void GenerateMarkers(vector<int>& grid)
+string MarkerToChar(Marker marker)
 {
+	if (marker == Marker::empty)
+	{
+		return ".";
+	}
+	else if (marker == Marker::hero)
+	{
+		return "@";
+	}
+	else if (marker == Marker::trap)
+	{
+		return "^";
+	}
+	else if (marker == Marker::treasure)
+	{
+		return ")";
+	}
+	else if (marker == Marker::wall)
+	{
+		return "X";
+	}
+	else return "-"; // failsafe
+}
 
+void PrintGrid(vector<int> grid, bool showAll)
+{
+	int i = 0;
+	int j = 0;
+	string m;
+	for (auto & cell : grid)
+	{
+
+		m = MarkerToChar(GetCell(grid, i));
+		MaddoLib::Output(m);
+
+		j++;
+		if (j >= GRID_WIDTH)
+		{
+			MaddoLib::OutputLine();
+			j = 0;
+		}
+		i++;
+
+	}
 }
