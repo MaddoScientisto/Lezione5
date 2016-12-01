@@ -9,20 +9,18 @@
 #include <math.h>
 using namespace std;
 using namespace Maddo;
-//Dichiarazione funzioni
+
+// Enums
 enum Marker { empty = 0, treasure = 1, wall = 2, enemy = 3, trap = 5, hero = 7 };
 enum Direction { up, down, left, right, invalid };
 enum GameState { play, win, loss, lossEnemy };
 enum Difficulty { veryEasy = 0, easy = 1, hard = 2, JUST = 3 };
-//class Vector2
-//{
-//public:
-//	int x, y;
-//
-//};
 
+// Costanti
 const int GRID_SIZE = 25;
 const int GRID_WIDTH = 5;
+
+//Dichiarazione funzioni
 void Game();
 int CheckMovement(int originalPosition, vector<int> grid, bool isPlayer);
 bool IsCellFree(vector<int> grid, int cell, bool forPlayer);
@@ -41,8 +39,8 @@ void MoveEnemies(vector<int> grid, vector<int>& enemies);
 bool IsEnemyOverPlayer(vector<int> grid, vector<int> enemies, int playerPosition);
 void UpdateEnemiesPositions(vector<int>& grid, vector<int> enemies);
 void ClearMarker(vector<int>& grid, Marker marker);
-// Funzioni
 
+// Funzioni
 int main()
 {
 	srand(static_cast<unsigned int>(0)); // Inizializzare il generatore di numeri casuali
@@ -66,13 +64,12 @@ void Game()
 	vector<int> grid(GRID_SIZE);
 	int playerPosition;
 	GameState gameState;
-	int tpos; // Temp player position
+	int tpos; // Nuova posizione
 	
 	Difficulty difficulty = AskForDifficulty();
 	bool reveal = (difficulty < Difficulty::easy);
 	GenerateObstacles(grid, difficulty);
 
-	//auto it = find(grid.begin(), grid.end(), Marker::hero) - grid.begin();
 	playerPosition = FindMarkerPosition(grid, 0, Marker::hero); //it;// grid(it);
 
 	vector<int> enemies;
@@ -136,9 +133,6 @@ void Game()
 
 	}
 
-	//auto p = pair(1, 1);
-
-
 }
 
 int CheckMovement(int originalPosition, vector<int> grid, bool isPlayer)
@@ -169,7 +163,6 @@ int CheckMovement(int originalPosition, vector<int> grid, bool isPlayer)
 		}
 		else
 		{
-			// getrandomdirection
 			direction = GetRandomDirection();
 		}
 
@@ -218,7 +211,6 @@ bool IsCellFree(vector<int> grid, int cell, bool forPlayer)
 	}
 	else
 	{
-		//return ((GetCell(grid, cell) != Marker::wall) || (GetCell(grid, cell) != Marker::treasure) || (GetCell(grid, cell) != Marker::trap) || (GetCell(grid, cell) != Marker::enemy));
 		return ((GetCell(grid, cell) == Marker::hero) || (GetCell(grid, cell) == Marker::empty));
 	}
 
@@ -423,14 +415,6 @@ vector<int> FindAllEnemies(vector<int> grid)
 
 		++iter;
 	}
-
-	//while (i < grid.size())
-	//{
-	//	i = FindMarkerPosition(grid, i, Marker::enemy);
-	//	enemies.push_back(i);
-	//	i++;
-	//}
-
 
 	return enemies;
 }
