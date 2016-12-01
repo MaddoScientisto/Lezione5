@@ -6,11 +6,20 @@
 #include <string>
 #include <algorithm>
 #include <time.h>
+#include <math.h>
 using namespace std;
 using namespace Maddo;
 //Dichiarazione funzioni
 enum Marker { empty = 0, treasure = 1, wall = 2, trap = 5, hero = 7 };
 enum Direction { up, down, left, right, invalid };
+
+//class Vector2
+//{
+//public:
+//	int x, y;
+//
+//};
+
 const int GRID_SIZE = 25;
 const int GRID_WIDTH = 5;
 void Game();
@@ -19,8 +28,9 @@ bool IsCellFree(vector<int> grid, int cell);
 Marker GetCell(vector<int> grid, int cell);
 string MarkerToChar(Marker marker);
 Direction ValidateDirection(string s);
-void GenerateMarkers(vector<int>& grid);
+void GenerateMarkers(vector<int>& grid, Marker marker, int amount);
 void PrintGrid(vector<int> grid, bool showAll);
+
 
 
 // Funzioni
@@ -47,18 +57,26 @@ void Game()
 {
 
 	vector<int> grid(GRID_SIZE);
-	int playerPosition = 12;
-	grid[12] = Marker::hero;
+	int playerPosition;
+	//int playerColumn = 3;
+	//grid[12] = Marker::hero;
+
+	//GenerateMarkers(grid);
+	GenerateMarkers(grid, Marker::trap, 3);
+	GenerateMarkers(grid, Marker::treasure, 1);
+	GenerateMarkers(grid, Marker::hero, 1);
+	playerPosition = find(grid.begin(), grid.end(), Marker::hero);
 
 	while (true)
 	{
 		MaddoLib::ClearScreen();
 		PrintGrid(grid, true);
-		playerPosition = Move(playerPosition, grid);
+		playerPosition = Move(playerPosition, grid); // todo: controllo trappole o tesori
 	}
 
-	
-	
+	//auto p = pair(1, 1);
+
+
 }
 
 int Move(int originalPosition, vector<int>& grid)
@@ -66,6 +84,7 @@ int Move(int originalPosition, vector<int>& grid)
 	Direction direction;
 	string d;
 	int destination;
+	bool isValid = false;
 	while (true)
 	{
 
@@ -89,21 +108,33 @@ int Move(int originalPosition, vector<int>& grid)
 		if (direction == Direction::up)
 		{
 			destination = originalPosition - GRID_WIDTH;
+			isValid = destination >= 0;
 		}
 		else if (direction == Direction::down)
 		{
 			destination = originalPosition + GRID_WIDTH;
+			isValid = destination < GRID_SIZE;
 		}
 		else if (direction == Direction::right)
 		{
-			destination = originalPosition + 1;
+			destination = originalPosition + 1;		
+			isValid = (destination % 5) > 0;
 		}
 		else if (direction == Direction::left)
 		{
 			destination = originalPosition - 1;
+			isValid = ((destination % 5) < GRID_WIDTH -1) && destination >= 0;
 		}
+		
+		if (isValid && IsCellFree(grid, destination))
+		{
+			grid[originalPosition] = Marker::empty;
+			grid[destination] = Marker::hero;
+			return destination;
+		}
+
 		// Validazione destinazione
-		if (destination < 0 || destination >= GRID_SIZE)
+		/*if (destination < 0 || destination >= GRID_SIZE ||(destination % 5 != originalPosition % 5))
 		{
 			MaddoLib::OutputLine("Posizione non valida");
 		}
@@ -115,7 +146,7 @@ int Move(int originalPosition, vector<int>& grid)
 			grid[originalPosition] = Marker::empty;
 			grid[destination] = Marker::hero;
 			return destination;
-		}
+		}*/
 	}
 }
 
@@ -158,6 +189,26 @@ Direction ValidateDirection(string s)
 	}
 
 	return Direction::invalid;
+}
+
+
+void GenerateMarkers(vector<int>& grid, Marker marker, int amount)
+{
+	int pos;
+	int failsafe = 0;
+	for (int i = 0; i < amount; i++)
+	{
+		while (failsafe < 9000)
+		{
+			pos = rand() % GRID_SIZE;
+			if (IsCellFree(grid, pos))
+			{
+				grid[pos] = marker;
+				break;
+			}
+			failsafe++;
+		}
+	}
 }
 
 string MarkerToChar(Marker marker)
