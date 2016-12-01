@@ -10,9 +10,10 @@
 using namespace std;
 using namespace Maddo;
 //Dichiarazione funzioni
-enum Marker { empty = 0, treasure = 1, wall = 2, trap = 5, hero = 7 };
+enum Marker { empty = 0, treasure = 1, wall = 2, enemy = 3, trap = 5, hero = 7 };
 enum Direction { up, down, left, right, invalid };
-
+enum GameState { play, win, loss, lossEnemy };
+enum Difficulty { veryEasy = 0, easy = 1, hard = 2, JUST = 3 };
 //class Vector2
 //{
 //public:
@@ -23,21 +24,28 @@ enum Direction { up, down, left, right, invalid };
 const int GRID_SIZE = 25;
 const int GRID_WIDTH = 5;
 void Game();
-int Move(int originalPosition, vector<int>& grid);
-bool IsCellFree(vector<int> grid, int cell);
+int CheckMovement(int originalPosition, vector<int> grid, bool isPlayer);
+bool IsCellFree(vector<int> grid, int cell, bool forPlayer);
 Marker GetCell(vector<int> grid, int cell);
-string MarkerToChar(Marker marker);
+string MarkerToChar(Marker marker, bool reveal);
+Direction GetRandomDirection();
 Direction ValidateDirection(string s);
 void GenerateMarkers(vector<int>& grid, Marker marker, int amount);
 void PrintGrid(vector<int> grid, bool showAll);
-
-
-
+GameState GetGameState(vector<int> grid, int cell);
+Difficulty AskForDifficulty();
+void GenerateObstacles(vector<int>& grid, Difficulty difficulty);
+int FindMarkerPosition(vector<int> grid, int startPosition, Marker marker);
+vector<int> FindAllEnemies(vector<int> grid);
+void MoveEnemies(vector<int> grid, vector<int>& enemies);
+bool IsEnemyOverPlayer(vector<int> grid, vector<int> enemies, int playerPosition);
+void UpdateEnemiesPositions(vector<int>& grid, vector<int> enemies);
+void ClearMarker(vector<int>& grid, Marker marker);
 // Funzioni
 
 int main()
 {
-	srand(static_cast<unsigned int>(time(0))); // Inizializzare il generatore di numeri casuali
+	srand(static_cast<unsigned int>(0)); // Inizializzare il generatore di numeri casuali
 	bool exit = false;
 	while (!exit) {
 		Game();
@@ -55,23 +63,77 @@ int main()
 
 void Game()
 {
-
 	vector<int> grid(GRID_SIZE);
 	int playerPosition;
-	//int playerColumn = 3;
-	//grid[12] = Marker::hero;
+	GameState gameState;
+	int tpos; // Temp player position
+	
+	Difficulty difficulty = AskForDifficulty();
+	bool reveal = (difficulty < Difficulty::easy);
+	GenerateObstacles(grid, difficulty);
 
-	//GenerateMarkers(grid);
-	GenerateMarkers(grid, Marker::trap, 3);
-	GenerateMarkers(grid, Marker::treasure, 1);
-	GenerateMarkers(grid, Marker::hero, 1);
-	playerPosition = find(grid.begin(), grid.end(), Marker::hero);
+	//auto it = find(grid.begin(), grid.end(), Marker::hero) - grid.begin();
+	playerPosition = FindMarkerPosition(grid, 0, Marker::hero); //it;// grid(it);
+
+	vector<int> enemies;
+
+	if (difficulty >= hard)
+	{
+		enemies = FindAllEnemies(grid);
+	}
 
 	while (true)
 	{
 		MaddoLib::ClearScreen();
-		PrintGrid(grid, true);
-		playerPosition = Move(playerPosition, grid); // todo: controllo trappole o tesori
+		PrintGrid(grid, reveal);
+		tpos = CheckMovement(playerPosition, grid, true);
+
+		gameState = GetGameState(grid, tpos);
+
+		if (difficulty >= Difficulty::hard)
+		{
+			MoveEnemies(grid, enemies);
+			if (IsEnemyOverPlayer(grid, enemies, tpos))
+			{
+				gameState = GameState::lossEnemy;
+			}
+		}
+
+
+
+		if (gameState == GameState::play)
+		{
+			// Movimento nella nuova posizione
+			grid[playerPosition] = Marker::empty;
+			grid[tpos] = Marker::hero;
+			playerPosition = tpos;
+
+			UpdateEnemiesPositions(grid, enemies);
+		}
+		else if (gameState == GameState::win)
+		{
+			MaddoLib::ClearScreen();
+			PrintGrid(grid, true);
+			MaddoLib::OutputLine("Hai trovato il tesoro! Hai vinto!");
+			break;
+		}
+		else if (gameState == GameState::loss)
+		{
+			MaddoLib::ClearScreen();
+			PrintGrid(grid, true);
+			MaddoLib::OutputLine("Sei caduto in una trappola! GAME OVER.");
+			break;
+		}
+		else if (gameState == GameState::lossEnemy)
+		{
+			MaddoLib::ClearScreen();
+			UpdateEnemiesPositions(grid, enemies);
+			PrintGrid(grid, true);
+			MaddoLib::OutputLine("Sei stato ucciso da un mostro! GAME OVER.");
+			break;
+		}
+
+
 	}
 
 	//auto p = pair(1, 1);
@@ -79,28 +141,36 @@ void Game()
 
 }
 
-int Move(int originalPosition, vector<int>& grid)
+int CheckMovement(int originalPosition, vector<int> grid, bool isPlayer)
 {
 	Direction direction;
 	string d;
 	int destination;
 	bool isValid = false;
+
 	while (true)
 	{
 
-
-		while (true)
+		if (isPlayer)
 		{
-			d = MaddoLib::Input("Inserire una direzione (w, a, s, d): ");
-			direction = ValidateDirection(d);
-			if (direction == invalid)
+			while (true)
 			{
-				MaddoLib::OutputLine("Direzione non valida (w, a, s, d).");
+				d = MaddoLib::Input("Inserire una direzione (w, a, s, d): ");
+				direction = ValidateDirection(d);
+				if (direction == invalid)
+				{
+					MaddoLib::OutputLine("Direzione non valida (w, a, s, d).");
+				}
+				else
+				{
+					break;
+				}
 			}
-			else
-			{
-				break;
-			}
+		}
+		else
+		{
+			// getrandomdirection
+			direction = GetRandomDirection();
 		}
 
 		// Movimento
@@ -117,56 +187,57 @@ int Move(int originalPosition, vector<int>& grid)
 		}
 		else if (direction == Direction::right)
 		{
-			destination = originalPosition + 1;		
+			destination = originalPosition + 1;
 			isValid = (destination % 5) > 0;
 		}
 		else if (direction == Direction::left)
 		{
 			destination = originalPosition - 1;
-			isValid = ((destination % 5) < GRID_WIDTH -1) && destination >= 0;
+			isValid = ((destination % 5) < GRID_WIDTH - 1) && destination >= 0;
 		}
-		
-		if (isValid && IsCellFree(grid, destination))
+
+		if (isValid && IsCellFree(grid, destination, isPlayer))
 		{
-			grid[originalPosition] = Marker::empty;
-			grid[destination] = Marker::hero;
 			return destination;
 		}
 
-		// Validazione destinazione
-		/*if (destination < 0 || destination >= GRID_SIZE ||(destination % 5 != originalPosition % 5))
+		// se il primo tentativo fallisce (ma la direzione è valida) ed è un npc allora non si muove proprio
+		if (isValid && !isPlayer)
 		{
-			MaddoLib::OutputLine("Posizione non valida");
+			return originalPosition;
 		}
-		else if (!IsCellFree(grid, destination)) {
-			MaddoLib::OutputLine("Non è possibile muoversi in quella direzione");
-		}
-		else
-		{
-			grid[originalPosition] = Marker::empty;
-			grid[destination] = Marker::hero;
-			return destination;
-		}*/
+
 	}
 }
 
-bool IsCellFree(vector<int> grid, int cell)
+bool IsCellFree(vector<int> grid, int cell, bool forPlayer)
 {
-	return (GetCell(grid, cell) != Marker::wall);
+	if (forPlayer)
+	{
+		return (GetCell(grid, cell) != Marker::wall);
+	}
+	else
+	{
+		//return ((GetCell(grid, cell) != Marker::wall) || (GetCell(grid, cell) != Marker::treasure) || (GetCell(grid, cell) != Marker::trap) || (GetCell(grid, cell) != Marker::enemy));
+		return ((GetCell(grid, cell) == Marker::hero) || (GetCell(grid, cell) == Marker::empty));
+	}
+
 }
 
 Marker GetCell(vector<int> grid, int cell)
 {
 	return static_cast<Marker>(grid[cell]);
-
-	return Marker();
 }
 
 string CellToChar(vector<int> grid, int cell)
 {
-
-
 	return string();
+}
+
+Direction GetRandomDirection()
+{
+	int d = rand() % 4;
+	return static_cast<Direction>(d);
 }
 
 Direction ValidateDirection(string s)
@@ -201,7 +272,7 @@ void GenerateMarkers(vector<int>& grid, Marker marker, int amount)
 		while (failsafe < 9000)
 		{
 			pos = rand() % GRID_SIZE;
-			if (IsCellFree(grid, pos))
+			if (IsCellFree(grid, pos, false))
 			{
 				grid[pos] = marker;
 				break;
@@ -211,8 +282,28 @@ void GenerateMarkers(vector<int>& grid, Marker marker, int amount)
 	}
 }
 
-string MarkerToChar(Marker marker)
+string MarkerToChar(Marker marker, bool reveal)
 {
+	if (!reveal)
+	{
+		if (marker == Marker::hero)
+		{
+			return "@";
+		}
+		else if (marker == Marker::enemy)
+		{
+			return "e";
+		}
+		else if (marker == Marker::wall)
+		{
+			return "X";
+		}
+		else
+		{
+			return ".";
+		}
+	}
+
 	if (marker == Marker::empty)
 	{
 		return ".";
@@ -233,6 +324,10 @@ string MarkerToChar(Marker marker)
 	{
 		return "X";
 	}
+	else if (marker == Marker::enemy)
+	{
+		return "e";
+	}
 	else return "-"; // failsafe
 }
 
@@ -244,7 +339,7 @@ void PrintGrid(vector<int> grid, bool showAll)
 	for (auto & cell : grid)
 	{
 
-		m = MarkerToChar(GetCell(grid, i));
+		m = MarkerToChar(GetCell(grid, i), showAll);
 		MaddoLib::Output(m);
 
 		j++;
@@ -255,5 +350,129 @@ void PrintGrid(vector<int> grid, bool showAll)
 		}
 		i++;
 
+	}
+}
+
+GameState GetGameState(vector<int> grid, int cell)
+{
+
+	if (GetCell(grid, cell) == Marker::trap)
+	{
+		return GameState::loss;
+	}
+	else if (GetCell(grid, cell) == Marker::treasure)
+	{
+		return GameState::win;
+	}
+	else if (GetCell(grid, cell) == Marker::enemy)
+	{
+		return GameState::lossEnemy;
+	}
+
+
+	return GameState::play;
+}
+
+Difficulty AskForDifficulty()
+{
+	return static_cast<Difficulty> (MaddoLib::InputInt("[0] Facilissimo (no trappole, no nemici, mostra tutto)\n[1] Facile (trappole, no nemici)\n[2] Difficile (no trappole, nemici, muri)\n[3] JUST FUCK MY SHIT UP!! (trappole + nemici + muri)\nScegliere la difficoltà: ", "Scelta errata", 0, 3));
+}
+
+void GenerateObstacles(vector<int>& grid, Difficulty difficulty)
+{
+	GenerateMarkers(grid, Marker::treasure, 1);
+
+	if (difficulty == Difficulty::easy)
+	{
+		GenerateMarkers(grid, Marker::trap, 3);
+	}
+	else if (difficulty == Difficulty::hard)
+	{
+		GenerateMarkers(grid, Marker::wall, 3);
+		GenerateMarkers(grid, Marker::enemy, 3);
+	}
+	else if (difficulty == Difficulty::JUST)
+	{
+		GenerateMarkers(grid, Marker::trap, 3);
+		GenerateMarkers(grid, Marker::wall, 3);
+		GenerateMarkers(grid, Marker::enemy, 3);
+	}
+	GenerateMarkers(grid, Marker::hero, 1);
+}
+
+int FindMarkerPosition(vector<int> grid, int startPosition, Marker marker)
+{
+	auto it = find(grid.begin() + startPosition, grid.end(), Marker::hero) - grid.begin() + startPosition;
+	return it;
+}
+
+bool IsEnemy(int i)
+{
+	return i == Marker::enemy;
+}
+
+vector<int> FindAllEnemies(vector<int> grid)
+{
+	vector<int> enemies;
+	int i = 0;
+
+	std::vector<int>::iterator iter = grid.begin();
+	while ((iter = find_if(iter, grid.end(), IsEnemy)) != grid.end())
+	{
+		enemies.push_back(iter - grid.begin());
+
+		++iter;
+	}
+
+	//while (i < grid.size())
+	//{
+	//	i = FindMarkerPosition(grid, i, Marker::enemy);
+	//	enemies.push_back(i);
+	//	i++;
+	//}
+
+
+	return enemies;
+}
+
+void MoveEnemies(vector<int> grid, vector<int>& enemies)
+{
+	//int tMov; // Valore temporaneo
+	for (auto & enemy : enemies)
+	{
+		enemy = CheckMovement(enemy, grid, false);
+	}
+}
+
+bool IsEnemyOverPlayer(vector<int> grid, vector<int> enemies, int playerPosition)
+{
+	for (auto & enemy : enemies)
+	{
+		if (enemy == playerPosition)
+		{
+			return true;
+		}
+
+	}
+	return false;
+}
+
+void UpdateEnemiesPositions(vector<int>& grid, vector<int> enemies)
+{
+	ClearMarker(grid, Marker::enemy);
+	for (auto & enemy : enemies)
+	{
+		grid[enemy] = Marker::enemy;
+	}
+}
+
+void ClearMarker(vector<int>& grid, Marker marker)
+{
+	for (auto & cell : grid)
+	{
+		if (cell == marker)
+		{
+			cell = Marker::empty;
+		}
 	}
 }
