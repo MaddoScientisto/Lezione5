@@ -151,11 +151,6 @@
     <ClCompile Include="2016-11-30.cpp" />
     <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\Lezione3\MaddoCppLib\MaddoLib.vcxproj">
-      <Project>{be812505-b2b6-4a6f-ad2f-d575c2df6c6f}</Project>
-    </ProjectReference>
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
